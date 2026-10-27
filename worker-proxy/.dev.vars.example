@@ -1,2 +1,0 @@
-# Copy to .dev.vars (gitignored) for `wrangler dev`. Never commit real values.
-API_KEY=replace-me

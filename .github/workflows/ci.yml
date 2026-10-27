@@ -8,17 +8,8 @@ on:
 permissions:
   contents: read
 
-# Reusable workflows cannot take a matrix, so one job per starter.
+# Unused while GitHub Actions are switched off for this repo (see docs/HANDOVER.md).
+# Calls a reusable workflow in vincentwesley/house, which is private.
 jobs:
-  vite-ts:
+  app:
     uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
-    with:
-      working-directory: vite-ts
-  mv3-extension:
-    uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
-    with:
-      working-directory: mv3-extension
-  worker-proxy:
-    uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
-    with:
-      working-directory: worker-proxy
