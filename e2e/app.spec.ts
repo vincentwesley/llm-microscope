@@ -33,6 +33,19 @@ test("predicts the indirect object and shows every head", async ({ page }) => {
   await expect(page.locator("#tokens .tok")).toHaveCount(15, { timeout: 60_000 });
   await expect(page.locator("#prompt")).toHaveValue(/drink to Mary$/);
 
+  // Logit lens: one row per depth, ending on the final guess.
+  await expect(page.locator("#lens tr")).toHaveCount(13, { timeout: 60_000 });
+
+  // Switching off the name-mover heads knocks " Mary" off the top.
+  await page.getByRole("button", { name: "Names" }).click();
+  await expect(page.locator("#preds li").first()).toContainText("Mary", { timeout: 60_000 });
+  await page.getByRole("button", { name: "Switch off name movers" }).click();
+  await expect(page.locator("#run-info")).toContainText("with interventions", { timeout: 60_000 });
+  await expect(page.locator("#preds li").first()).not.toContainText("Mary");
+  await expect(page.locator("#ablated .hs-chip")).toHaveCount(3);
+  await page.getByRole("button", { name: "Clear" }).click();
+  await expect(page.locator("#preds li").first()).toContainText("Mary", { timeout: 60_000 });
+
   // Presets run new prompts.
   await page.getByRole("button", { name: "Count" }).click();
   await expect(page.locator("#preds li").first()).toContainText("5", { timeout: 60_000 });
@@ -50,7 +63,11 @@ test("theme toggle and credits", async ({ page }) => {
 for (const theme of ["dark", "light"] as const) {
   test(`axe clean (${theme})`, async ({ page }) => {
     await ready(page);
+    await expect(page.locator("#lens tr")).toHaveCount(13, { timeout: 60_000 });
     if (theme === "light") await page.getByRole("button", { name: "Light theme" }).click();
+    // Include the intervention states (deltas, pressed toggle, chips).
+    await page.locator("#ablate-toggle").click();
+    await expect(page.locator("#run-info")).toContainText("with interventions", { timeout: 60_000 });
     const { violations } = await new AxeBuilder({ page }).analyze();
     expect(violations).toEqual([]);
   });

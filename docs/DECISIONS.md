@@ -11,8 +11,10 @@
 9. **Default prompt is the IOI sentence (predicts " Mary")** — it is the best-known GPT-2 small circuit.
 10. **Prompt capped at 64 tokens** — CPU cost and readable heatmaps.
 11. **No SharedArrayBuffer/threads in the MVP** — no COOP/COEP needed.
-12. **Zero-ablation of heads rather than mean-ablation; steering adds alpha*vec to `resid_pre` at one layer at all positions** — simple and explainable.
+12. **Zero-ablation of heads rather than mean-ablation; steering adds alpha·vec to the residual stream entering one layer at every position except 0** — simple and explainable. Position 0 is GPT-2's attention sink with a huge residual norm; steering it, or building the vector from phrases sitting at position 0, broke the model at any strength in our probe. So each phrase is run after `<|endoftext|>`, read with a leading space ("Hate" → " Hate", one token), and averaged over its tokens. Steering is off by default; in our probe strengths 2–5 shift the next word and 10 breaks it.
 13. **No GitHub Actions (owner has 0 minutes)** — verify locally; the session could not switch Actions off (the API path is blocked from the cloud sandbox), so nothing is pushed until the owner does; the template CI calls a private reusable workflow (`vincentwesley/house`) and is left untouched and unused.
 14. **Licence MIT for the code; GPT-2 weights under OpenAI's modified MIT, credited** — matches the upstream terms.
 15. **Default zoomed head L9H9** — a name-mover head of the IOI circuit (Wang et al. 2022); in our run it puts 37% of the last token's attention on " Mary", so the first view already shows something real.
 16. **Attention colours: sqrt ramp from `--bg` to `--accent`** — keeps weak but real attention visible; the token highlight tint is capped at 45% (plus an underline) to keep WCAG AA contrast.
+17. **Logit lens per position, not the full grid** — one position is 13 unembeddings (~0.5 GMAC, ~0.5 s on CPU); the full layer × position grid would be ~10 s for 14 tokens. Rows are labelled embed, L0…L11 (after each block) and recorded before steering is added.
+18. **Deltas use one extra clean pass when interventions are on** — doubles run time under interventions (cached while the tokens don't change); acceptable on CPU now, revisit with M4.

@@ -16,9 +16,9 @@ src/main.ts                 page wiring
 
 ## Milestones
 1. **M1 MVP**: model in the browser, top-10 next word (click to append), 144-head attention grid, zoomed head with token labels, per-token attention text view. ✅
-2. **M2 Logit lens**: layer × position grid of each layer's top guess, shaded by probability; top-5 per cell.
-3. **M3 Interventions**: switch heads off (zero ablation) and compare predictions with the clean run; steering vector from a prompt pair at a chosen layer and strength.
-4. **M4 Speed**: WebGPU matmuls with the CPU path as fallback; KV cache for appending tokens.
+2. **M2 Logit lens**: per selected position, every depth's top 5 and the probability of the final guess. ✅ (A full layer × position grid costs ~10 s on CPU; it waits for M4.)
+3. **M3 Interventions**: switch heads off (zero ablation) and compare predictions with the clean run; steering vector from a phrase pair at a chosen layer and strength. ✅
+4. **M4 Speed**: WebGPU matmuls with the CPU path as fallback; KV cache for appending tokens; then a full logit-lens grid and greedy "continue the text" comparisons (clean vs steered), where steering shows best.
 5. **Later**: induction-head finder (repeated random tokens), shareable URLs (prompt + settings in the hash), tuned lens, distilGPT-2 option.
 
 ## Done means

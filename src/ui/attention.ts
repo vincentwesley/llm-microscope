@@ -62,7 +62,8 @@ function gridGeometry(w: number, p: Pattern) {
   return { cell, step: cell + GAP };
 }
 
-export function drawGrid(canvas: HTMLCanvasElement, p: Pattern, sel: { layer: number; head: number }): void {
+/** `off` holds "layer:head" keys of switched-off heads; they get a cross. */
+export function drawGrid(canvas: HTMLCanvasElement, p: Pattern, sel: { layer: number; head: number }, off: Set<string>): void {
   const { ctx, w } = fit(canvas);
   const c = readColours();
   const { T, nLayer, nHead } = p;
@@ -81,7 +82,19 @@ export function drawGrid(canvas: HTMLCanvasElement, p: Pattern, sel: { layer: nu
       const A = p.attn[l];
       for (let i = 0; i < T * T; i++) shade(c, A[h * T * T + i], img.data, i * 4);
       tctx.putImageData(img, 0, 0);
-      ctx.drawImage(tile, AXIS + h * step, AXIS + l * step, cell, cell);
+      const x = AXIS + h * step;
+      const y = AXIS + l * step;
+      ctx.drawImage(tile, x, y, cell, cell);
+      if (off.has(`${l}:${h}`)) {
+        ctx.strokeStyle = c.sel;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, y + 2);
+        ctx.lineTo(x + cell - 2, y + cell - 2);
+        ctx.moveTo(x + cell - 2, y + 2);
+        ctx.lineTo(x + 2, y + cell - 2);
+        ctx.stroke();
+      }
     }
   }
 

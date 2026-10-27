@@ -1,6 +1,8 @@
 # LLM Microscope
 
-Look inside a real language model running in your browser. Type a prompt and watch GPT-2 small predict the next word, see what each of its 144 attention heads looks at, and click a guess to keep the text going.
+Look inside a real language model running in your browser. Type a prompt and watch GPT-2 small predict the next word. See what each of its 144 attention heads looks at, read its guess at every layer (the logit lens), and switch heads off or steer it to see what changes.
+
+![LLM Microscope: prompt, tokens and next-word predictions](docs/screenshots/overview-dark.jpg)
 
 Nothing to install and no server: the model runs in a Web Worker on your own device, and what you type never leaves the page.
 
@@ -10,11 +12,22 @@ Nothing to install and no server: the model runs in a Web Worker on your own dev
 3. **Next word** lists the model's top 10 guesses with probabilities. Click one to append it and predict again.
 4. **Attention heads**: each small square is one head (rows = layers 0–11, columns = heads 0–11). Inside a square, row *i* shows which earlier tokens token *i* attends to. Click a square, or use the Layer/Head pickers, to zoom in. Click a token to see what it looks at.
 
-Try the default "Names" prompt with layer 9, head 9. It is one of the "name mover" heads found in GPT-2 small's indirect-object circuit, and from " to" it looks straight back at " Mary".
+5. **Interventions**: switch the selected head off (or use "Switch off name movers"), or steer the model by adding the difference between two phrases at one layer. The next-word list then shows each change in percentage points against the untouched run.
+6. **Logit lens**: the model's best guess after every layer for the selected token, and how likely the final answer already is at that depth.
+
+Try the default "Names" prompt with layer 9, head 9. It is one of the "name mover" heads found in GPT-2 small's indirect-object circuit (Wang et al. 2022), and from " to" it looks straight back at " Mary". Switch off the three name movers (L9H6, L9H9, L10H0) and " Mary" drops from 45% to 25%, and " them" takes over.
+
+| Attention heads | Logit lens (name movers switched off) |
+|---|---|
+| ![All 144 heads and a zoomed head](docs/screenshots/attention-dark.jpg) | ![Logit lens table](docs/screenshots/logit-lens-dark.jpg) |
+
+| Ablation deltas | Phone, light theme |
+|---|---|
+| ![Predictions with changes against the clean run](docs/screenshots/ablation-dark.jpg) | ![Mobile layout](docs/screenshots/mobile-light.jpg) |
 
 ## How it works
 - **Model**: OpenAI's GPT-2 small (124M parameters, 2019). The weights are converted to 8-bit (one scale per 64 weights) by `scripts/prepare-model.mjs` and split into files of 20 MiB or less, served from this site, checked with SHA-256 and cached with the Cache API.
-- **Forward pass**: hand-written TypeScript (`src/model/gpt2.ts`), so every internal value is available: attention patterns, the residual stream at every layer, head switches and steering. It is tested against an independent numpy implementation (`scripts/reference.py`).
+- **Forward pass**: hand-written TypeScript (`src/model/gpt2.ts`), so every internal value is available: attention patterns, the residual stream at every layer, head switches (zero ablation) and steering (activation addition, Turner et al. 2023, averaged over each phrase's tokens and skipping the first position). It is tested against an independent numpy implementation (`scripts/reference.py`).
 - **Tokenizer**: `gpt-tokenizer` (GPT-2's byte-pair encoding).
 
 ## Develop

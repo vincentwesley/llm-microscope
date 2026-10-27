@@ -20,3 +20,11 @@ export function gridCell(x: number, y: number, cell: number, gap: number, cols: 
   if (x - col * step >= cell || y - row * step >= cell) return null; // in a gap
   return { col, row };
 }
+
+/** Change from the clean run, in percentage points. */
+export function delta(now: number, before: number): { text: string; dir: "up" | "down" | "same" } {
+  const pp = (now - before) * 100;
+  if (Math.abs(pp) < 0.05) return { text: "±0", dir: "same" };
+  const n = Math.abs(pp) >= 10 ? Math.round(Math.abs(pp)).toString() : Math.abs(pp).toFixed(1);
+  return pp > 0 ? { text: `+${n}`, dir: "up" } : { text: `−${n}`, dir: "down" };
+}

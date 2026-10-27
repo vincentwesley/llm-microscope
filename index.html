@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Look inside GPT-2 small running in your browser: next-word predictions and every attention head, with nothing to install.">
+  <meta name="description" content="Look inside GPT-2 small running in your browser: next-word predictions, every attention head, the logit lens, head ablation and steering. Nothing to install.">
   <meta name="theme-color" content="#11150e">
   <title>LLM Microscope</title>
 </head>
@@ -12,7 +12,7 @@
     <p class="hs-eyebrow">GPT-2 small · in your browser</p>
     <h1>LLM Microscope</h1>
     <button id="theme" class="hs-btn" type="button" aria-pressed="false">Light theme</button>
-    <p class="lede">Type a prompt and watch a real language model predict the next word. Every attention head is on screen. The model runs on your device; nothing you type leaves the page.</p>
+    <p class="lede">Type a prompt and watch a real language model predict the next word. See every attention head, read its guess at every layer, and switch parts off to see what changes. The model runs on your device; nothing you type leaves the page.</p>
   </header>
   <main>
     <section id="status-card" class="hs-card status" aria-labelledby="h-status">
@@ -26,7 +26,7 @@
 
     <section class="hs-card" aria-labelledby="h-prompt">
       <h2 id="h-prompt">Prompt</h2>
-      <form id="prompt-form" class="prompt">
+      <form id="prompt-form" class="prompt" autocomplete="off">
         <label for="prompt" class="sr-only">Prompt</label>
         <textarea id="prompt" rows="3" maxlength="600" spellcheck="false">When Mary and John went to the store, John gave a drink to</textarea>
         <div class="prompt__actions">
@@ -50,6 +50,25 @@
       <ol id="preds" class="preds"></ol>
     </section>
 
+    <section class="hs-card" aria-labelledby="h-int">
+      <h2 id="h-int">Interventions</h2>
+      <p class="hint">Switch heads off or push the model in a direction. The next-word list then shows each change against the untouched run.</p>
+      <h3 class="sub">Heads switched off</h3>
+      <div id="ablated" class="chips" role="group" aria-label="Heads switched off"></div>
+      <div class="row">
+        <button id="ablate-movers" class="hs-chip" type="button">Switch off name movers</button>
+        <button id="ablate-clear" class="hs-chip" type="button">Clear</button>
+      </div>
+      <h3 class="sub">Steering</h3>
+      <p class="hint">Adds (towards − away from) × strength to the model's internal state at one layer, averaged over each phrase's tokens.</p>
+      <div class="steer" role="group" aria-label="Steering">
+        <label>Towards <input id="steer-plus" autocomplete="off" type="text" value="Love" maxlength="60" spellcheck="false"></label>
+        <label>Away from <input id="steer-minus" autocomplete="off" type="text" value="Hate" maxlength="60" spellcheck="false"></label>
+        <label>Layer <select id="steer-layer"></select></label>
+        <label><span>Strength <output id="steer-alpha-out" for="steer-alpha" class="mono">off</output></span><input id="steer-alpha" autocomplete="off" type="range" min="-10" max="10" step="0.5" value="0"></label>
+      </div>
+    </section>
+
     <section class="hs-card" aria-labelledby="h-attn">
       <h2 id="h-attn">Attention heads</h2>
       <p class="hint">12 layers × 12 heads. Each square shows which earlier tokens (columns) a head looks at from each token (rows). Pick a head to zoom in.</p>
@@ -64,15 +83,27 @@
           </div>
           <canvas id="heat" width="360" height="360" role="img" aria-label="Attention pattern of the selected head"></canvas>
           <p id="heat-readout" class="meta mono">Hover a cell for its weight.</p>
+          <button id="ablate-toggle" class="hs-btn btn-ghost" type="button" aria-pressed="false">Switch off L9H9</button>
         </div>
       </div>
       <h3 class="sub">What <span id="query-label" class="mono">the last token</span> looks at</h3>
       <p id="attn-text" class="attn-text"></p>
     </section>
 
+    <section class="hs-card" aria-labelledby="h-lens">
+      <h2 id="h-lens">Logit lens</h2>
+      <p class="hint">Reads the model's running state after every layer as if it were the last one, for <span id="lens-pos" class="mono">the last token</span>. Shows at which depth the final guess appears. Click a token above to pick another position.</p>
+      <div class="lens-wrap">
+        <table class="lens">
+          <thead><tr><th scope="col">Depth</th><th scope="col">Top guess</th><th scope="col" class="lens__more">Runners-up</th><th scope="col">P(<span id="lens-final" class="mono">final</span>)</th></tr></thead>
+          <tbody id="lens"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="hs-card about" aria-labelledby="h-about">
       <h2 id="h-about">About</h2>
-      <p>This is OpenAI's GPT-2 small (124M parameters, 2019), compressed to 8-bit and running in plain TypeScript in a Web Worker. Weights are served from this site and cached by your browser. Attention patterns are read straight out of the forward pass, not approximated.</p>
+      <p>This is OpenAI's GPT-2 small (124M parameters, 2019), compressed to 8-bit and running in plain TypeScript in a Web Worker. Weights are served from this site and cached by your browser. Attention patterns, the logit lens and the interventions all work on the real forward pass, not an approximation.</p>
       <p>The model is small and old: its guesses are often wrong, odd or biased. That is part of what makes it worth looking inside.</p>
     </section>
   </main>

@@ -2,8 +2,8 @@ import "./style.css";
 import "./credits/credits.js";
 import { applyTheme, nextTheme, type Theme } from "./theme";
 import { drawGrid, drawHeat, gridHit, type HeatLayout, type Pattern } from "./ui/attention";
-import { pct, showToken } from "./ui/format";
-import { MAX_TOKENS, type Reply, type RunReply } from "./worker/protocol";
+import { delta, pct, showToken } from "./ui/format";
+import { MAX_TOKENS, type LensReply, type Reply, type RunReply, type Steer } from "./worker/protocol";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -39,8 +39,7 @@ themeBtn.addEventListener("click", () => {
   redraw(); // canvas colours come from the theme tokens
 });
 
-// ---- model worker ----
-const worker = new Worker(new URL("./worker/model.worker.ts", import.meta.url), { type: "module" });
+// ---- state ----
 const statusChip = $("#status-chip");
 const statusText = $("#status-text");
 const statusBar = $<HTMLProgressElement>("#status-bar");
@@ -48,17 +47,31 @@ const runBtn = $<HTMLButtonElement>("#run");
 const promptEl = $<HTMLTextAreaElement>("#prompt");
 
 let ready = false;
-let runId = 0;
-let busy = false;
-let pending: { text?: string; ids?: number[] } | null = null;
 let last: RunReply | null = null;
 // L9H9 is a "name mover" head from the indirect-object circuit: from " to" it looks back at " Mary".
 const sel = { layer: 9, head: 9, query: -1 };
+/** Ablated heads as "layer:head" keys. */
+const ablated = new Set<string>();
+const NAME_MOVERS = ["9:6", "9:9", "10:0"];
+
+// ---- model worker: one job at a time; only the latest run and latest lens wait ----
+const worker = new Worker(new URL("./worker/model.worker.ts", import.meta.url), { type: "module" });
+let busy = false;
+let jobId = 0;
+let pendingRun: { text?: string; ids?: number[] } | null = null;
+let pendingLens: number | null = null;
 
 function setStatus(chip: string, text: string, state: "loading" | "ready" | "error"): void {
   statusChip.textContent = chip;
   statusText.textContent = text;
   $("#status-card").dataset.state = state;
+}
+
+function idle(): void {
+  busy = false;
+  runBtn.disabled = !ready;
+  runBtn.textContent = "Run";
+  flush();
 }
 
 worker.onmessage = (e: MessageEvent<Reply>) => {
@@ -74,37 +87,62 @@ worker.onmessage = (e: MessageEvent<Reply>) => {
     runBtn.disabled = false;
     request({ text: promptEl.value });
   } else if (m.type === "result") {
-    busy = false;
-    if (m.id === runId) show(m);
-    flush();
+    show(m);
+    idle();
+  } else if (m.type === "lens") {
+    showLens(m);
+    idle();
   } else {
-    busy = false;
-    if (!ready) {
-      setStatus("Error", `Could not load the model: ${m.message}`, "error");
-    } else {
-      $("#run-info").textContent = m.message;
-    }
-    runBtn.disabled = !ready;
-    runBtn.textContent = "Run";
-    flush();
+    if (!ready) setStatus("Error", `Could not load the model: ${m.message}`, "error");
+    else $("#run-info").textContent = m.message;
+    idle();
   }
 };
 worker.onerror = () => setStatus("Error", "The model worker failed to start. Try a recent Chrome, Edge, Firefox or Safari.", "error");
 worker.postMessage({ type: "load", base: `${import.meta.env.BASE_URL}model/` });
 
-/** Runs one request at a time; while busy, only the latest one waits. */
 function request(r: { text?: string; ids?: number[] }): void {
-  pending = r;
+  pendingRun = r;
+  pendingLens = null; // a new run supersedes any lens on the old one
   flush();
 }
+function requestLens(pos: number): void {
+  pendingLens = pos;
+  flush();
+}
+/** Re-runs the current tokens with the current interventions. */
+function rerun(): void {
+  if (last) request({ ids: last.ids });
+}
+
+function steer(): Steer | null {
+  const alpha = Number($<HTMLInputElement>("#steer-alpha").value);
+  const plus = $<HTMLInputElement>("#steer-plus").value.trim();
+  const minus = $<HTMLInputElement>("#steer-minus").value.trim();
+  if (!alpha || !plus || !minus) return null; // incomplete: run without steering rather than erroring
+  return {
+    plus,
+    minus,
+    layer: Number($<HTMLSelectElement>("#steer-layer").value),
+    alpha,
+  };
+}
+
 function flush(): void {
-  if (busy || !pending || !ready) return;
-  busy = true;
-  runBtn.disabled = true;
-  runBtn.textContent = "Running…";
-  $("#run-info").textContent = "";
-  worker.postMessage({ type: "run", id: ++runId, ...pending });
-  pending = null;
+  if (busy || !ready) return;
+  if (pendingRun) {
+    busy = true;
+    runBtn.disabled = true;
+    runBtn.textContent = "Running…";
+    $("#run-info").textContent = "";
+    const ablate = [...ablated].map((k) => k.split(":").map(Number) as [number, number]);
+    worker.postMessage({ type: "run", id: ++jobId, ...pendingRun, ablate, steer: steer() });
+    pendingRun = null;
+  } else if (pendingLens !== null && last) {
+    busy = true;
+    worker.postMessage({ type: "lens", id: ++jobId, pos: pendingLens });
+    pendingLens = null;
+  }
 }
 
 $("#prompt-form").addEventListener("submit", (e) => {
@@ -126,46 +164,51 @@ function pattern(r: RunReply): Pattern {
   return { attn: r.attn, T: r.ids.length, nLayer: r.nLayer, nHead: r.nHead };
 }
 
-function show(r: RunReply): void {
-  last = r;
-  runBtn.disabled = false;
-  runBtn.textContent = "Run";
-  sel.query = r.ids.length - 1;
-  $("#run-info").textContent =
-    `${r.ids.length} tokens · ${(r.ms / 1000).toFixed(2)} s` + (r.truncated ? ` · kept the last ${MAX_TOKENS} tokens` : "");
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = ""): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  e.className = cls;
+  e.textContent = text;
+  return e;
+}
 
-  const strip = $("#tokens");
-  strip.replaceChildren(
+function show(r: RunReply): void {
+  const sameTokens = last?.ids.join() === r.ids.join();
+  last = r;
+  if (!sameTokens || sel.query >= r.ids.length) sel.query = r.ids.length - 1;
+  $("#run-info").textContent =
+    `${r.ids.length} tokens · ${(r.ms / 1000).toFixed(2)} s` +
+    (r.intervened ? " · with interventions" : "") +
+    (r.truncated ? ` · kept the last ${MAX_TOKENS} tokens` : "");
+
+  $("#tokens").replaceChildren(
     ...r.tokens.map((t, i) => {
-      const b = document.createElement("button");
+      const b = el("button", "tok mono", showToken(t));
       b.type = "button";
-      b.className = "tok mono";
-      b.textContent = showToken(t);
       b.title = `Token ${i}, id ${r.ids[i]}`;
       b.addEventListener("click", () => {
         sel.query = i;
         redraw();
+        requestLens(i);
       });
       return b;
     }),
   );
 
-  const preds = $("#preds");
-  preds.replaceChildren(
+  $("#preds").replaceChildren(
     ...r.top.map((p) => {
       const li = document.createElement("li");
-      const b = document.createElement("button");
+      const b = el("button", "pred");
       b.type = "button";
-      b.className = "pred";
       b.style.setProperty("--p", String(p.prob));
       b.title = `Add "${p.token}" to the prompt`;
-      const tok = document.createElement("span");
-      tok.className = "pred__tok mono";
-      tok.textContent = showToken(p.token);
-      const val = document.createElement("span");
-      val.className = "pred__p mono";
-      val.textContent = pct(p.prob);
-      b.append(tok, val);
+      const val = el("span", "pred__p mono", pct(p.prob));
+      if (r.intervened) {
+        const d = delta(p.prob, p.clean);
+        const dv = el("span", `pred__d mono pred__d--${d.dir}`, d.text);
+        dv.title = `${pct(p.clean)} without interventions`;
+        val.prepend(dv);
+      }
+      b.append(el("span", "pred__tok mono", showToken(p.token)), val);
       b.addEventListener("click", () => {
         promptEl.value += p.token;
         request({ ids: [...r.ids, p.id] });
@@ -175,18 +218,50 @@ function show(r: RunReply): void {
     }),
   );
   redraw();
+  requestLens(sel.query);
+}
+
+const lensBody = $("#lens");
+function showLens(m: LensReply): void {
+  if (!last || m.pos !== sel.query) return; // stale
+  $("#lens-pos").textContent = `“${showToken(last.tokens[m.pos])}” (token ${m.pos})`;
+  $("#lens-final").textContent = showToken(m.finalToken);
+  lensBody.replaceChildren(
+    ...m.rows.map((row, i) => {
+      const tr = document.createElement("tr");
+      const th = el("th", "mono", i === 0 ? "embed" : `L${i - 1}`);
+      th.title = i === 0 ? "Token + position embeddings" : `After block ${i - 1}`;
+      th.scope = "row";
+      const top = row.top[0];
+      const best = el("td", "lens__top mono", showToken(top.token));
+      best.title = pct(top.prob);
+      if (top.token === m.finalToken) best.classList.add("is-final");
+      const more = el("td", "lens__more mono", row.top.slice(1).map((t) => showToken(t.token)).join("  "));
+      const fin = el("td", "");
+      const wrap = el("div", "lens__bar");
+      const bar = el("span", "bar");
+      bar.style.setProperty("--p", String(row.final));
+      wrap.append(bar, el("span", "mono", pct(row.final)));
+      fin.append(wrap);
+      tr.append(th, best, more, fin);
+      return tr;
+    }),
+  );
 }
 
 const grid = $<HTMLCanvasElement>("#grid");
 const heat = $<HTMLCanvasElement>("#heat");
 const layerSel = $<HTMLSelectElement>("#layer");
 const headSel = $<HTMLSelectElement>("#head");
+const steerLayer = $<HTMLSelectElement>("#steer-layer");
 let heatLayout: HeatLayout | null = null;
 
 for (let i = 0; i < 12; i++) {
   layerSel.add(new Option(String(i), String(i)));
   headSel.add(new Option(String(i), String(i)));
+  steerLayer.add(new Option(String(i), String(i)));
 }
+steerLayer.value = "6";
 layerSel.value = String(sel.layer);
 headSel.value = String(sel.head);
 layerSel.addEventListener("change", () => {
@@ -199,11 +274,12 @@ headSel.addEventListener("change", () => {
 });
 
 function redraw(): void {
+  renderAblated();
   if (!last) return;
   const p = pattern(last);
   layerSel.value = String(sel.layer);
   headSel.value = String(sel.head);
-  drawGrid(grid, p, sel);
+  drawGrid(grid, p, sel, ablated);
   heatLayout = drawHeat(heat, p, sel.layer, sel.head, last.tokens, sel.query);
   heat.setAttribute("aria-label", `Attention pattern of layer ${sel.layer}, head ${sel.head}`);
 
@@ -213,9 +289,7 @@ function redraw(): void {
   const row = p.attn[sel.layer].subarray((sel.head * T + sel.query) * T, (sel.head * T + sel.query + 1) * T);
   $("#attn-text").replaceChildren(
     ...last.tokens.map((t, j) => {
-      const s = document.createElement("span");
-      s.className = "w mono";
-      s.textContent = t;
+      const s = el("span", "w mono", t);
       if (j <= sel.query) {
         s.style.setProperty("--w", String(Math.sqrt(row[j])));
         s.title = `${pct(row[j])} of L${sel.layer}H${sel.head}'s attention`;
@@ -226,6 +300,70 @@ function redraw(): void {
       return s;
     }),
   );
+}
+
+// ---- interventions ----
+const ablateBtn = $<HTMLButtonElement>("#ablate-toggle");
+function renderAblated(): void {
+  const key = `${sel.layer}:${sel.head}`;
+  ablateBtn.setAttribute("aria-pressed", String(ablated.has(key)));
+  ablateBtn.textContent = `${ablated.has(key) ? "Switch on" : "Switch off"} L${sel.layer}H${sel.head}`;
+  const box = $("#ablated");
+  if (!ablated.size) {
+    box.replaceChildren(el("span", "hint", "None. Pick a head under Attention heads and switch it off."));
+    return;
+  }
+  const keys = [...ablated].sort((a, b) => {
+    const [la, ha] = a.split(":").map(Number);
+    const [lb, hb] = b.split(":").map(Number);
+    return la - lb || ha - hb;
+  });
+  box.replaceChildren(
+    ...keys.map((k) => {
+      const [l, h] = k.split(":");
+      const b = el("button", "hs-chip chip--off", `L${l}H${h} `);
+      const x = el("span", "", "×");
+      x.setAttribute("aria-hidden", "true");
+      b.append(x);
+      b.type = "button";
+      b.title = `Switch L${l}H${h} back on`;
+      b.addEventListener("click", () => {
+        ablated.delete(k);
+        redraw();
+        rerun();
+      });
+      return b;
+    }),
+  );
+}
+ablateBtn.addEventListener("click", () => {
+  const key = `${sel.layer}:${sel.head}`;
+  if (!ablated.delete(key)) ablated.add(key);
+  redraw();
+  rerun();
+});
+$("#ablate-movers").addEventListener("click", () => {
+  NAME_MOVERS.forEach((k) => ablated.add(k));
+  redraw();
+  rerun();
+});
+$("#ablate-clear").addEventListener("click", () => {
+  if (!ablated.size) return;
+  ablated.clear();
+  redraw();
+  rerun();
+});
+
+const alphaEl = $<HTMLInputElement>("#steer-alpha");
+const syncAlpha = () => {
+  $("#steer-alpha-out").textContent = alphaEl.value === "0" ? "off" : alphaEl.value;
+};
+alphaEl.addEventListener("input", syncAlpha);
+syncAlpha(); // browsers may restore the slider on reload
+for (const id of ["#steer-alpha", "#steer-layer", "#steer-plus", "#steer-minus"]) {
+  $(id).addEventListener("change", () => {
+    if (id === "#steer-alpha" || steer()) rerun();
+  });
 }
 
 grid.addEventListener("click", (e) => {
@@ -257,6 +395,7 @@ heat.addEventListener("click", (e) => {
   if (i >= 0 && i < last.ids.length) {
     sel.query = i;
     redraw();
+    requestLens(i);
   }
 });
 
@@ -265,3 +404,4 @@ window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(redraw, 120);
 });
+renderAblated();

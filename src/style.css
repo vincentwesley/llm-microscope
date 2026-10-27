@@ -85,3 +85,47 @@ progress::-moz-progress-bar { background: var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
   .pred::before { transition: transform 0.4s var(--fx-ease); }
 }
+
+/* Project colours on top of tokens.css: peach as text on light needs a darker shade for contrast. */
+:root { --warn-fg: var(--fx-2); --on-warn: #1a0d06; }
+:root[data-theme="light"] { --warn-fg: #8a3a17; }
+
+/* outline variant of hs-btn */
+.btn-ghost { margin-top: 0.5rem; color: var(--fg); background: transparent; border-color: var(--border-strong); }
+.btn-ghost[aria-pressed="true"] { color: var(--on-warn); background: var(--fx-2); border-color: var(--fx-2); }
+
+/* prediction deltas */
+.pred__p { display: inline-flex; gap: 0.6rem; align-items: baseline; }
+.pred__d { font-size: 0.8rem; }
+.pred__d--up { color: var(--accent); }
+.pred__d--down { color: var(--warn-fg); }
+
+/* interventions */
+.chips, .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.row { margin-top: 0.75rem; }
+.chips .hint { margin: 0; }
+.chip--off { color: var(--warn-fg); }
+.steer { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem 1rem; align-items: end; }
+.steer label { display: grid; gap: 0.3rem; font: 400 0.8rem var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }
+.steer input[type="text"], .steer select {
+  min-height: 40px; padding: 0 0.6rem; font: 1rem var(--font-mono); color: var(--fg); background: var(--bg);
+  border: 0; border-radius: 0; box-shadow: var(--pix);
+}
+.steer input[type="range"] { min-height: 40px; accent-color: var(--accent); }
+.steer output { color: var(--fg); }
+
+/* logit lens */
+.lens-wrap { overflow-x: auto; }
+.lens { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.lens th, .lens td { padding: 0.3rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border); white-space: pre; }
+.lens thead th { font: 400 0.75rem var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); white-space: nowrap; }
+.lens thead .mono { font: 400 0.8rem var(--font-mono); text-transform: none; letter-spacing: 0; color: var(--fg); }
+.lens tbody th { color: var(--fg-muted); font-weight: 400; }
+.lens__top.is-final { color: var(--accent); font-weight: 700; }
+.lens__more { color: var(--fg-muted); }
+.lens__bar { display: flex; align-items: center; gap: 0.5rem; min-width: 9rem; }
+.lens__bar .bar { --p: 0; flex: 1; height: 10px; background: linear-gradient(90deg, var(--accent) calc(var(--p) * 100%), var(--bg) 0); box-shadow: var(--pix); }
+.lens__bar .mono { min-width: 4.5ch; text-align: right; font-size: 0.8rem; }
+@media (max-width: 560px) {
+  .lens__more { display: none; }
+}

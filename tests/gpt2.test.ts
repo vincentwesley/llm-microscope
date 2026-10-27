@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { run, topK, unembed } from "../src/model/gpt2";
+import { run, steeringVector, topK, unembed } from "../src/model/gpt2";
 import { assemble, concatChunks, type Manifest, type Weights } from "../src/model/weights";
 
 interface Ref {
@@ -66,6 +66,26 @@ describe("hooks", () => {
     expect(Array.from(none.logits.subarray(0, 50))).toEqual(Array.from(clean.logits.subarray(0, 50)));
     const all = run(w, ids, { ablate: Array.from({ length: 12 }, () => Array(12).fill(true)) });
     expect(topK(all.logits, 1)[0].id).not.toBe(topK(clean.logits, 1)[0].id);
+  });
+
+  it("steering vectors: identical phrases give zero, different phrases move the prediction", () => {
+    const love = [5896]; // " Love"
+    const hate = [28334]; // " Hate"
+    expect(steeringVector(w, love, love, 6).every((v) => v === 0)).toBe(true);
+    const vec = steeringVector(w, love, hate, 6);
+    const clean = run(w, ids);
+    const steered = run(w, ids, { steer: { layer: 6, vec, alpha: 5 } });
+    expect(Math.max(...steered.logits.map((v, i) => Math.abs(v - clean.logits[i])))).toBeGreaterThan(1);
+    // Position 0 (the attention sink) is left alone.
+    expect(steered.resid[7].subarray(0, 768)).toEqual(clean.resid[7].subarray(0, 768));
+  });
+
+  it("stopAt returns the residual stream early and unchanged", () => {
+    const full = run(w, ids);
+    const early = run(w, ids, { stopAt: 4 });
+    expect(early.resid).toHaveLength(5);
+    expect(early.resid[4]).toEqual(full.resid[4]);
+    expect(early.logits).toHaveLength(0);
   });
 
   it("steering with alpha 0 is a no-op", () => {

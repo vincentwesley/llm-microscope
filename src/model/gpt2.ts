@@ -6,8 +6,10 @@ import type { QMat, Weights } from "./weights";
 export interface RunOptions {
   /** ablate[layer][head] = true zeroes that head's output before the output projection. */
   ablate?: boolean[][];
-  /** Adds alpha * vec to the residual stream entering `layer`, at every position. */
+  /** Adds alpha * vec to the residual stream entering `layer`, at every position except the first (the attention sink). */
   steer?: { layer: number; vec: Float32Array; alpha: number };
+  /** Stop once the residual stream entering this layer is recorded (logits and later layers are skipped). */
+  stopAt?: number;
 }
 
 export interface RunResult {
@@ -98,12 +100,14 @@ export function run(w: Weights, ids: number[], opts: RunOptions = {}): RunResult
   const attn: Float32Array[] = [];
   const resid: Float32Array[] = [];
 
-  w.layers.forEach((L, l) => {
+  for (let l = 0; l < w.layers.length; l++) {
+    const L = w.layers[l];
+    resid.push(x.slice()); // recorded before steering, so resid[l] is the output of block l - 1
+    if (opts.stopAt === l) return { T, logits: new Float32Array(0), attn, resid };
     if (opts.steer && opts.steer.layer === l) {
       const { vec, alpha } = opts.steer;
-      for (let t = 0; t < T; t++) for (let i = 0; i < d; i++) x[t * d + i] += alpha * vec[i];
+      for (let t = 1; t < T; t++) for (let i = 0; i < d; i++) x[t * d + i] += alpha * vec[i];
     }
-    resid.push(x.slice());
 
     layerNorm(x, T, d, L.ln1g, L.ln1b, eps, h);
     matmul(h, T, L.qkv, L.qkvB, qkv);
@@ -135,7 +139,7 @@ export function run(w: Weights, ids: number[], opts: RunOptions = {}): RunResult
     for (let i = 0; i < ff.length; i++) ff[i] = gelu(ff[i]);
     matmul(ff, T, L.out, L.outB, tmp);
     for (let i = 0; i < T * d; i++) x[i] += tmp[i];
-  });
+  }
   resid.push(x.slice());
 
   return { T, logits: unembed(w, x.subarray((T - 1) * d, T * d)), attn, resid };
@@ -151,12 +155,17 @@ export function unembed(w: Weights, r: Float32Array): Float32Array {
   return logits;
 }
 
-/** Top-k indices with their softmax probabilities over the whole vocabulary. */
-export function topK(logits: Float32Array, k: number): { id: number; logit: number; prob: number }[] {
-  let m = -Infinity;
-  for (const v of logits) if (v > m) m = v;
+export function softmaxStats(logits: Float32Array): { max: number; sum: number } {
+  let max = -Infinity;
+  for (const v of logits) if (v > max) max = v;
   let sum = 0;
-  for (const v of logits) sum += Math.exp(v - m);
+  for (const v of logits) sum += Math.exp(v - max);
+  return { max, sum };
+}
+
+/** Top-k indices with their softmax probabilities over the whole vocabulary. */
+export function topK(logits: Float32Array, k: number, stats = softmaxStats(logits)): { id: number; logit: number; prob: number }[] {
+  const { max, sum } = stats;
   const best: number[] = [];
   for (let i = 0; i < logits.length; i++) {
     const v = logits[i];
@@ -169,5 +178,25 @@ export function topK(logits: Float32Array, k: number): { id: number; logit: numb
     }
     best[at] = i;
   }
-  return best.map((id) => ({ id, logit: logits[id], prob: Math.exp(logits[id] - m) / sum }));
+  return best.map((id) => ({ id, logit: logits[id], prob: Math.exp(logits[id] - max) / sum }));
+}
+
+export const END_OF_TEXT = 50256;
+
+/**
+ * Activation-addition steering vector (Turner et al. 2023): the difference between the residual
+ * streams entering `layer`, averaged over each phrase's tokens. Each phrase is run after
+ * <|endoftext|> so it never sits at position 0, whose residual is huge and unlike the others.
+ */
+export function steeringVector(w: Weights, plus: number[], minus: number[], layer: number): Float32Array {
+  const d = w.config.dModel;
+  const mean = (ids: number[]) => {
+    const r = run(w, [END_OF_TEXT, ...ids], { stopAt: layer }).resid[layer];
+    const m = new Float32Array(d);
+    for (let t = 1; t <= ids.length; t++) for (let i = 0; i < d; i++) m[i] += r[t * d + i] / ids.length;
+    return m;
+  };
+  const a = mean(plus);
+  const b = mean(minus);
+  return a.map((v, i) => v - b[i]);
 }
