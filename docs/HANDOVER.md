@@ -1,8 +1,8 @@
 # Handover
 
 ## ⚠️ Your one-time steps
-1. **Switch GitHub Actions off** (the session couldn't: `gh api … /actions/permissions` is blocked from the cloud sandbox with HTTP 403). Go to Settings › Actions › General › "Disable actions". Until then nothing has been pushed, because `ci.yml` and `automerge.yml` would run and use minutes. All work is in local commits on `claude/relaxed-bohr-e8q7ik`.
-2. Then tell a session to push and open/merge the PR (it merges via `gh api -X PUT repos/vincentwesley/llm-microscope/pulls/<n>/merge -f merge_method=squash`).
+1. **Switch GitHub Actions off** (the session couldn't: `gh api … /actions/permissions` is blocked from the cloud sandbox with HTTP 403). Go to Settings › Actions › General › "Disable actions". The work is pushed to branch `claude/relaxed-bohr-e8q7ik` with **no PR**: a branch push triggers no workflow (`ci.yml` runs only on pushes to main and on pull requests; `automerge.yml` only after CI).
+2. Then tell a session to open and merge the PR (it merges via `gh api -X PUT repos/vincentwesley/llm-microscope/pulls/<n>/merge -f merge_method=squash`). If Actions are still on, put `[skip ci]` in the PR's head commit and the squash-merge message so neither event starts CI.
 3. **Cloudflare Pages**: Workers & Pages › Create › Pages › Connect to Git › `vincentwesley/llm-microscope`, production branch `main`, build command `npm run build`, output directory `dist`, environment variable `NODE_VERSION=24`. No secrets needed.
 4. Optional: a custom domain in the Pages project.
 

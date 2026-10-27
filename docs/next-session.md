@@ -14,7 +14,7 @@
 - M2 done: logit lens for the selected token (13 depths, top 5, P(final)).
 - M3 done: head ablation (toggle, name-mover preset, chips) and steering (phrase pair, layer, strength) with deltas against the clean run.
 - Checked under the production CSP (injected in Playwright). Next: M4 (WebGPU + KV cache), see `docs/PLAN.md`.
-- Not pushed (Actions could not be switched off from here).
+- Pushed to `claude/relaxed-bohr-e8q7ik`, no PR yet (Actions could not be switched off from here; a PR would start CI).
 
 ## Known gaps
 1. No KV cache: each appended token re-runs the whole prompt (~2 s for 14 tokens on CPU); interventions add one clean pass.
