@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Reusable workflows cannot take a matrix, so one job per starter.
+jobs:
+  vite-ts:
+    uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
+    with:
+      working-directory: vite-ts
+  mv3-extension:
+    uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
+    with:
+      working-directory: mv3-extension
+  worker-proxy:
+    uses: vincentwesley/house/.github/workflows/ci-node.yml@6d808f1bddc36aca8b16d83a6c5f2f2cb1777f17
+    with:
+      working-directory: worker-proxy

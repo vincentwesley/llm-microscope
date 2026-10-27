@@ -1,0 +1,36 @@
+{
+  "name": "worker-proxy-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that proxies one upstream API with the key hidden, Cache API caching, per-IP rate limit and a CORS allow-list.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Vincent Wesley",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vincentwesley/starters.git",
+    "directory": "worker-proxy"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit && wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "knip": "^6.41.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.0"
+  }
+}
