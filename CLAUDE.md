@@ -1,13 +1,11 @@
-# CLAUDE.md (Vincent Wesley, cloud sessions)
+# CLAUDE.md: LLM Microscope (Vincent Wesley, cloud sessions)
 
-## First run (only while `vite-ts/`, `mv3-extension/` and `worker-proxy/` still exist at the repo root)
-This repo is a template of three starters. When I give you a project name and description, do this before anything else, without asking:
-1. Pick the starter that fits (vite-ts = web app, mv3-extension = Chrome extension, worker-proxy = API proxy Worker). Default to vite-ts.
-2. Move that starter's contents to the repo root, delete the other two starter folders and the monorepo README/CI, and keep `.claude/` and `.github/workflows/automerge.yml` (it merges `claude/*` PRs once CI passes; never delete it or rename the CI workflow, which must stay named `CI`).
-3. Merge the starter's CLAUDE.md into this file, then delete this whole "First run" section.
-4. Replace `{{PROJECT}}` and the `package.json` name/repository with the project name. Make `.github/workflows/ci.yml` run at the repo root (no `working-directory`), and add `.claude` to the ESLint ignores.
-5. Build the MVP from my description. If I gave no must-haves, keep it to the smallest useful version.
-6. Run typecheck + lint + test + build, update `docs/next-session.md`, commit, open a PR, and report in 2 lines.
+## Project: LLM Microscope
+GPT-2 small running in the browser with interpretability tools (predictions, attention heads, logit lens, ablation, steering). Public repo, MIT. Read `docs/next-session.md`, then `docs/PLAN.md` and `docs/DECISIONS.md`.
+- Checks that must stay green: `npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e` (in this sandbox prefix e2e with `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`).
+- Model weights live in `public/model/` (manifest + content-hashed chunks, each <= 20 MiB). Regenerate only with `npm run prepare-model`; fixtures with `node scripts/fixture-prompts.mjs` + `python3 -I scripts/reference.py <model.safetensors>`.
+- No GitHub Actions at all (0 minutes): never add workflows, Dependabot or schedules, never re-run CI. Push only after the owner confirms Actions are off; merge own PR with `gh api -X PUT repos/vincentwesley/llm-microscope/pulls/<n>/merge -f merge_method=squash`.
+- Keep `public/_headers` strict: no inline scripts, no third-party hosts. Every deployed file under 25 MiB.
 
 ## Who
 Vincent Wesley (GitHub: vincentwesley).
