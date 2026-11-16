@@ -16,6 +16,8 @@
 - Checked under the production CSP (injected in Playwright). Next: M4 (WebGPU + KV cache), see `docs/PLAN.md`.
 - Pushed to `claude/relaxed-bohr-e8q7ik`, no PR yet (Actions could not be switched off from here; a PR would start CI).
 
+- Branch `vin-atelier-brand` (unpushed): draggable Vin's Atelier logo + studio credits in the credits sign-off (`src/brand/`, `e2e/logo.spec.ts`).
+
 ## Known gaps
 1. No KV cache: each appended token re-runs the whole prompt (~2 s for 14 tokens on CPU); interventions add one clean pass.
 3. Steering is judged on the next word only; it shows best on continued text (needs M4 speed).

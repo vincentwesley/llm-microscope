@@ -1,5 +1,6 @@
 import "./style.css";
 import "./credits/credits.js";
+import "./brand/logo-resize";
 import { applyTheme, nextTheme, type Theme } from "./theme";
 import { drawGrid, drawHeat, gridHit, type HeatLayout, type Pattern } from "./ui/attention";
 import { delta, pct, showToken } from "./ui/format";
