@@ -11,3 +11,5 @@
 
 ## State
 See `docs/next-session.md` for what's done and what's next.
+
+- e2e: grid click re-measures inside `toPass` (CI mobile-375 hit layer 10, not 11, from a stale canvas box; not reproducible locally).

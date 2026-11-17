@@ -23,9 +23,12 @@ test("predicts the indirect object and shows every head", async ({ page }) => {
 
   // Click a head in the overview grid and the pickers follow.
   const grid = page.locator("#grid");
-  const box = (await grid.boundingBox())!;
-  await grid.click({ position: { x: box.width - 4, y: box.height - 4 } });
-  await expect(page.locator("#layer")).toHaveValue("11");
+  // Re-measure on each try: late layout shifts (fonts, panels filling in) move the canvas after the first box.
+  await expect(async () => {
+    const box = (await grid.boundingBox())!;
+    await grid.click({ position: { x: box.width - 4, y: box.height - 4 } });
+    await expect(page.locator("#layer")).toHaveValue("11", { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
   await expect(page.locator("#head")).toHaveValue("11");
 
   // Picking a prediction appends it and predicts again.
