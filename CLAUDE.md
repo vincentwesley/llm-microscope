@@ -28,7 +28,7 @@ Vincent Wesley (GitHub: vincentwesley).
 - If a docs-only commit must go out on its own, put `[skip ci]` in the message.
 
 ## Git
-- Commits only as `vincentwesley <221810966+vincentwesley@users.noreply.github.com>`. Never a real email, never the retired Pincenw account.
+- Commits only as `vincentwesley <221810966+vincentwesley@users.noreply.github.com>`. Never a real email, never the retired account.
 - Work on a `claude/...` branch and open a PR. Repos stay private; never change visibility.
 
 ## House style (every UI)

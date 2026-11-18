@@ -25,3 +25,5 @@ brag-output/
 *.zip
 .cache/
 qa-output/
+# Local agent config and personal prompts (never tracked)
+.claude/
