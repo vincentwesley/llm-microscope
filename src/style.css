@@ -88,8 +88,8 @@ progress::-moz-progress-bar { background: var(--accent); }
 }
 
 /* Project colours on top of tokens.css: peach as text on light needs a darker shade for contrast. */
-:root { --warn-fg: var(--fx-2); --on-warn: #1a0d06; }
-:root[data-theme="light"] { --warn-fg: #8a3a17; }
+:root { --warn-text: var(--fx-2); --on-warn: #1a0d06; }
+:root[data-theme="light"] { --warn-text: #8a3a17; --on-warn: #fff; }
 
 /* outline variant of hs-btn */
 .btn-ghost { margin-top: 0.5rem; color: var(--fg); background: transparent; border-color: var(--border-strong); }
@@ -99,13 +99,13 @@ progress::-moz-progress-bar { background: var(--accent); }
 .pred__p { display: inline-flex; gap: 0.6rem; align-items: baseline; }
 .pred__d { font-size: 0.8rem; }
 .pred__d--up { color: var(--accent); }
-.pred__d--down { color: var(--warn-fg); }
+.pred__d--down { color: var(--warn-text); }
 
 /* interventions */
 .chips, .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .row { margin-top: 0.75rem; }
 .chips .hint { margin: 0; }
-.chip--off { color: var(--warn-fg); }
+.chip--off { color: var(--warn-text); }
 .steer { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem 1rem; align-items: end; }
 .steer label { display: grid; gap: 0.3rem; font: 400 0.8rem var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }
 .steer input[type="text"], .steer select {

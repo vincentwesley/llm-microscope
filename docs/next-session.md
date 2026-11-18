@@ -25,3 +25,4 @@
 2. First visit downloads 129 MB; cached afterwards.
 - CI: .github/workflows/ci.yml is now inlined (house reusable workflow is private); dependabot.yml points at / (2026-11-17).
 - 2026-11-17: logo spec waits for the --logo-x transition before measuring (15s polls).
+- 2026-11-18: re-copied kit tokens.css per UPGRADING.md; renamed local --warn-fg to --warn-text (kit now owns --warn-fg), light --on-warn #fff for contrast (credits.css still older kit; needs markup change).
